@@ -13,6 +13,14 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
+func IntParam(i int64) null.Int {
+	return null.IntFrom(i)
+}
+
+func FloatParam(f float64) null.Float {
+	return null.FloatFrom(f)
+}
+
 type Config struct {
 	Hmm           string
 	Dict          string
@@ -22,6 +30,9 @@ type Config struct {
 	Kws           string
 	Kws_threshold null.Float
 	Kws_plp       null.Float
+	Debug         null.Int
+	SamplingRate  null.Int
+	DisableInfo   bool
 }
 
 func (c Config) SetParams(psConfig *C.cmd_ln_t) {
@@ -46,6 +57,10 @@ func (c Config) SetParams(psConfig *C.cmd_ln_t) {
 	if c.Kws_plp.Valid {
 		setFloatParam(psConfig, "-kws_plp", c.Kws_plp.Float64)
 	}
+
+	if c.Debug.Valid {
+		setIntParam(psConfig, "-debug", c.Debug.Int64)
+	}
 }
 
 func setStringParam(psConfig *C.cmd_ln_t, key, val string) {
@@ -62,7 +77,7 @@ func setFloatParam(psConfig *C.cmd_ln_t, key string, val float64) {
 	C.cmd_ln_set_float_r(psConfig, keyPtr, C.double(val))
 }
 
-func setIntParam(psConfig *C.cmd_ln_t, key string, val int) {
+func setIntParam(psConfig *C.cmd_ln_t, key string, val int64) {
 	keyPtr := C.CString(key)
 	defer C.free(unsafe.Pointer(keyPtr))
 	C.cmd_ln_set_int_r(psConfig, keyPtr, C.long(val))
