@@ -28,8 +28,8 @@ import (
 )
 
 type Result struct {
-	Result string
-	Score  int64
+	Text  string
+	Score int64
 }
 
 var noReult = make([]Result, 0)
@@ -37,6 +37,7 @@ var noReult = make([]Result, 0)
 type PocketSphinx struct {
 	ps     *C.ps_decoder_t
 	Config Config
+	conf   *C.cmd_ln_t
 }
 
 func NewPocketSphinx(config Config) *PocketSphinx {
@@ -53,7 +54,12 @@ func NewPocketSphinx(config Config) *PocketSphinx {
 	var ps *C.ps_decoder_t
 	ps = C.ps_init(psConfig)
 
-	return &PocketSphinx{ps: ps, Config: config}
+	return &PocketSphinx{ps: ps, Config: config, conf: psConfig}
+}
+
+func (p *PocketSphinx) Free() {
+	C.ps_free(p.ps)
+	C.cmd_ln_free_r(p.conf)
 }
 
 func (p *PocketSphinx) StartUtt() error {
@@ -83,13 +89,13 @@ func (p *PocketSphinx) ProcessRaw(raw []byte, noSearch, fullUtt bool) error {
 	raw_byte := (*C.char)(unsafe.Pointer(&raw))
 	numByte := len(raw)
 	errorcode := C.process_raw(p.ps, raw_byte, C.size_t(numByte), C.int(bool2int(noSearch)), C.int(bool2int(fullUtt)))
-	if errorcode != 0 {
+	if errorcode < 0 {
 		return fmt.Errorf("process_raw error:%d", errorcode)
 	}
 	return nil
 }
 
-func (p *PocketSphinx) getHyp() Result {
+func (p *PocketSphinx) GetHyp() Result {
 	var score C.int32
 	ret := C.GoString(C.ps_get_hyp(p.ps, &score))
 	return Result{ret, int64(score)}
@@ -109,27 +115,36 @@ func (p *PocketSphinx) getNbest(numNbest int) []Result {
 		if nbestIt == nil {
 			break
 		}
-		ret := append(ret, p.getNbestHyp(nbestIt))
+		ret = append(ret, p.getNbestHyp(nbestIt))
 		if len(ret) == numNbest {
+			C.ps_nbest_free(nbestIt)
 			break
 		}
+		nbestIt = C.ps_nbest_next(nbestIt)
 	}
+
 	return ret
 }
 
 func (p *PocketSphinx) ProcessUtt(raw []byte, numNbest int) ([]Result, error) {
+	ret := make([]Result, 0, numNbest)
 	err := p.StartUtt()
 	if err != nil {
-		return noReult, err
+		return ret, err
 	}
 	err = p.ProcessRaw(raw, false, true)
 	if err != nil {
-		return noReult, err
+		return ret, err
 	}
 	err = p.EndUtt()
 	if err != nil {
-		return noReult, err
+		return ret, err
 	}
-	ret := p.getNbest(numNbest)
+	r := p.GetHyp()
+	if r.Text != "" {
+		ret = append(ret, r)
+	}
+
+	ret = append(ret, p.getNbest(numNbest-1)...)
 	return ret, nil
 }

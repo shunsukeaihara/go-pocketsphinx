@@ -42,6 +42,9 @@ func (c Config) SetParams(psConfig *C.cmd_ln_t) {
 	if c.Dict != "" {
 		setStringParam(psConfig, "-dict", c.Dict)
 	}
+	if c.Lm != "" {
+		setStringParam(psConfig, "-lm", c.Lm)
+	}
 	if c.Jsgf != "" {
 		setStringParam(psConfig, "-jsgf", c.Jsgf)
 	}
