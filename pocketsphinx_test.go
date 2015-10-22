@@ -75,7 +75,7 @@ func TestProcessRaw(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	r, _ = ps.GetHyp(false)
+	r, _ = ps.GetHyp(true)
 
 	if r.Text != "go forward ten meters" {
 		t.Error("could not recognize", r.Text, r.Score)
@@ -157,5 +157,33 @@ func TestWordSpotting(t *testing.T) {
 	ps.EndUtt()
 	if c == 0 {
 		t.Error("keyphrase not found")
+	}
+}
+
+func TestEndUttErr(t *testing.T) {
+	conf := Config{Hmm: "./models/en-us/en-us",
+		Dict:        "./models/en-us/cmudict-en-us.dict",
+		Keyphrase:   "forward",
+		DisableInfo: true}
+	ps := NewPocketSphinx(conf)
+	defer ps.Free()
+	if ps.EndUtt() == nil {
+		t.Error("call EndUtt befoer StartUtt must raise error")
+	}
+}
+
+func TestStartUttErr(t *testing.T) {
+	conf := Config{Hmm: "./models/en-us/en-us",
+		Dict:        "./models/en-us/cmudict-en-us.dict",
+		Keyphrase:   "forward",
+		DisableInfo: true}
+	ps := NewPocketSphinx(conf)
+	defer ps.Free()
+	if err := ps.StartUtt(); err != nil {
+		t.Error(err)
+		return
+	}
+	if ps.StartUtt() == nil {
+		t.Error("call StartUtt after calling StartUtt without ErrUtt, must raise error")
 	}
 }

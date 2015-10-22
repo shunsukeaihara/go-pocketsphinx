@@ -25,7 +25,7 @@ type Segment struct {
 // GetSegments returns word segment list for best hypotesis
 func GetSegments(ps *C.ps_decoder_t) []Segment {
 	s := segments{ps: ps}
-	return s.getBesyHypSegments()
+	return s.getBestHypSegments()
 }
 
 // GetSegments returns word segment list for nbest_t
@@ -34,7 +34,7 @@ func GetSegmentsForNbest(nb *C.ps_nbest_t) []Segment {
 	return s.getNbestHypSegments()
 }
 
-func (s segments) getBesyHypSegments() []Segment {
+func (s segments) getBestHypSegments() []Segment {
 	var score C.int32
 	segIt := C.ps_seg_iter(s.ps, &score)
 	return s.getSegmentsFromIter(segIt)
