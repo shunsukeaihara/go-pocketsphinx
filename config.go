@@ -29,6 +29,7 @@ type Config struct {
 	Beam          null.Float
 	Wbeam         null.Float
 	Keyphrase     string
+	Keyphrases    []string
 	Kws           string
 	Kws_threshold null.Float
 	Kws_plp       null.Float
@@ -76,8 +77,6 @@ func (c Config) SetParams(psConfig *C.cmd_ln_t) {
 	if c.Debug.Valid {
 		setIntParam(psConfig, "-debug", c.Debug.Int64)
 	}
-	setIntParam(psConfig, "-backtrace", 1)
-	setIntParam(psConfig, "-verbose", 1)
 }
 
 func setStringParam(psConfig *C.cmd_ln_t, key, val string) {

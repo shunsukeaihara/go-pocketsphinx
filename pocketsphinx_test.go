@@ -83,6 +83,35 @@ func TestProcessRaw(t *testing.T) {
 
 }
 
+func TestProcessRawIncremental(t *testing.T) {
+	conf := Config{Hmm: "./models/en-us/en-us",
+		Dict:        "./models/en-us/cmudict-en-us.dict",
+		Lm:          "./models/en-us/en-us.lm.bin",
+		DisableInfo: true}
+	ps := NewPocketSphinx(conf)
+	defer ps.Free()
+	file, _ := os.Open("./data/goforward.raw")
+	defer file.Close()
+	buf := make([]byte, 1024)
+	var lastr Result
+	ps.StartUtt()
+	for {
+		size, err := file.Read(buf)
+		if err != nil {
+			break
+		}
+		ps.ProcessRaw(buf[:size], false, false)
+		r, err := ps.GetHyp(false)
+		if err == nil {
+			lastr = r
+		}
+	}
+	ps.EndUtt()
+	if lastr.Text != "go forward ten meters" {
+		t.Error("recognition failed")
+	}
+}
+
 func TestWordSpottingUtt(t *testing.T) {
 	conf := Config{Hmm: "./models/en-us/en-us",
 		Dict:        "./models/en-us/cmudict-en-us.dict",

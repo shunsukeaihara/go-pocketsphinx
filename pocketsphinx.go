@@ -27,6 +27,7 @@ import (
 type Result struct {
 	Text     string
 	Score    int64
+	Prob     int64
 	Segments []Segment
 }
 
@@ -111,7 +112,7 @@ func (p *PocketSphinx) GetHyp(segment bool) (Result, error) {
 		return Result{}, errors.New("no hypothesis")
 	}
 	text := C.GoString(charp)
-	ret := Result{Text: text, Score: int64(score)}
+	ret := Result{Text: text, Score: int64(score), Prob: int64(C.ps_get_prob(p.ps))}
 	if segment {
 		ret.Segments = GetSegments(p.ps)
 	}
@@ -136,6 +137,10 @@ func (p *PocketSphinx) GetNbest(numNbest int, segment bool) []Result {
 		if nbestIt == nil {
 			break
 		}
+		if len(ret) == numNbest {
+			C.ps_nbest_free(nbestIt)
+			break
+		}
 
 		hyp := p.getNbestHyp(nbestIt, segment)
 		if hyp.Text == "" {
@@ -143,10 +148,6 @@ func (p *PocketSphinx) GetNbest(numNbest int, segment bool) []Result {
 			break
 		}
 		ret = append(ret, hyp)
-		if len(ret) == numNbest {
-			C.ps_nbest_free(nbestIt)
-			break
-		}
 		nbestIt = C.ps_nbest_next(nbestIt)
 	}
 
