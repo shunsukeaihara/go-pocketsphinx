@@ -1,8 +1,7 @@
 package pocketsphinx
 
 /*
-#cgo CFLAGS: -I/usr/local/include/pocketsphinx -I/usr/local/include/sphinxbase/
-#cgo LDFLAGS: -L/usr/local/lib -lpocketsphinx -lsphinxbase
+#cgo pkg-config: pocketsphinx sphinxbase
 #include <pocketsphinx.h>
 */
 import "C"
@@ -12,6 +11,7 @@ type segments struct {
 	nb *C.ps_nbest_t
 }
 
+//Segment represents a word segment contains frame infomations and probabirity
 type Segment struct {
 	Word       string
 	StartFrame int64
@@ -22,23 +22,25 @@ type Segment struct {
 	LbackProb  int64
 }
 
+// GetSegments returns word segment list for best hypotesis
 func GetSegments(ps *C.ps_decoder_t) []Segment {
 	s := segments{ps: ps}
-	return s.GetBesyHypSegments()
+	return s.getBesyHypSegments()
 }
 
+// GetSegments returns word segment list for nbest_t
 func GetSegmentsForNbest(nb *C.ps_nbest_t) []Segment {
 	s := segments{nb: nb}
-	return s.GetNbestHypSegments()
+	return s.getNbestHypSegments()
 }
 
-func (s segments) GetBesyHypSegments() []Segment {
+func (s segments) getBesyHypSegments() []Segment {
 	var score C.int32
 	segIt := C.ps_seg_iter(s.ps, &score)
 	return s.getSegmentsFromIter(segIt)
 }
 
-func (s segments) GetNbestHypSegments() []Segment {
+func (s segments) getNbestHypSegments() []Segment {
 	var score C.int32
 	segIt := C.ps_nbest_seg(s.nb, &score)
 	return s.getSegmentsFromIter(segIt)

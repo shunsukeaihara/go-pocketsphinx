@@ -1,8 +1,7 @@
 package pocketsphinx
 
 /*
-#cgo CFLAGS: -I/usr/local/include/pocketsphinx -I/usr/local/include/sphinxbase/
-#cgo LDFLAGS: -L/usr/local/lib -lpocketsphinx -lsphinxbase
+#cgo pkg-config: pocketsphinx sphinxbase
 #include <pocketsphinx.h>
 */
 import "C"
@@ -26,6 +25,9 @@ type Config struct {
 	Dict          string
 	Lm            string
 	Jsgf          string
+	Bestpath      string
+	Beam          null.Float
+	Wbeam         null.Float
 	Keyphrase     string
 	Kws           string
 	Kws_threshold null.Float
@@ -49,6 +51,9 @@ func (c Config) SetParams(psConfig *C.cmd_ln_t) {
 	if c.Jsgf != "" {
 		setStringParam(psConfig, "-jsgf", c.Jsgf)
 	}
+	if c.Bestpath == "no" {
+		setIntParam(psConfig, "-bestpath", 0)
+	}
 	if c.Keyphrase != "" {
 		setStringParam(psConfig, "-keyphrase", c.Keyphrase)
 	}
@@ -61,10 +66,18 @@ func (c Config) SetParams(psConfig *C.cmd_ln_t) {
 	if c.Kws_plp.Valid {
 		setFloatParam(psConfig, "-kws_plp", c.Kws_plp.Float64)
 	}
+	if c.Beam.Valid {
+		setFloatParam(psConfig, "-beam", c.Beam.Float64)
+	}
+	if c.Wbeam.Valid {
+		setFloatParam(psConfig, "-wbeam", c.Wbeam.Float64)
+	}
 
 	if c.Debug.Valid {
 		setIntParam(psConfig, "-debug", c.Debug.Int64)
 	}
+	setIntParam(psConfig, "-backtrace", 1)
+	setIntParam(psConfig, "-verbose", 1)
 }
 
 func setStringParam(psConfig *C.cmd_ln_t, key, val string) {

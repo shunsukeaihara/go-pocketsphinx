@@ -1,10 +1,10 @@
 package pocketsphinx
 
 /*
-#cgo CFLAGS: -I/usr/local/include/pocketsphinx -I/usr/local/include/sphinxbase/
-#cgo LDFLAGS: -L/usr/local/lib -lpocketsphinx -lsphinxbase
+#cgo pkg-config: pocketsphinx sphinxbase
 #include <pocketsphinx.h>
 #include <err.h>
+#include <stdio.h>
 
 cmd_ln_t *default_config(){
     return cmd_ln_parse_r(NULL, ps_args(), 0, NULL, FALSE);
@@ -14,15 +14,11 @@ int process_raw(ps_decoder_t *ps, char const *data, size_t n_samples, int no_sea
     n_samples /= sizeof(int16);
     return ps_process_raw(ps, (int16 *)data, n_samples, no_search, full_utt);
 }
-
-
-//nbest
-
-
 */
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"unsafe"
 )
@@ -38,13 +34,11 @@ type Result struct {
 type PocketSphinx struct {
 	ps     *C.ps_decoder_t
 	Config Config
-	conf   *C.cmd_ln_t
 }
 
 //NewPocketSphinx creates PocketSphinx instance with Config.
 func NewPocketSphinx(config Config) *PocketSphinx {
-	var psConfig *C.cmd_ln_t
-	psConfig = C.default_config()
+	psConfig := C.default_config()
 	config.SetParams(psConfig)
 
 	if config.DisableInfo {
@@ -53,16 +47,24 @@ func NewPocketSphinx(config Config) *PocketSphinx {
 		C.err_set_logfile(path)
 	}
 
-	var ps *C.ps_decoder_t
-	ps = C.ps_init(psConfig)
+	ps := C.ps_init(psConfig)
+	C.cmd_ln_free_r(psConfig)
 
-	return &PocketSphinx{ps: ps, Config: config, conf: psConfig}
+	return &PocketSphinx{ps: ps, Config: config}
 }
 
 //Free releases all resources associated with the PocketSphinx.
 func (p *PocketSphinx) Free() {
 	C.ps_free(p.ps)
-	C.cmd_ln_free_r(p.conf)
+}
+
+//StartUtt starts utterance processing.
+func (p *PocketSphinx) StartStream() error {
+	ret := C.ps_start_stream(p.ps)
+	if ret != 0 {
+		return fmt.Errorf("start_stream error:%d", ret)
+	}
+	return nil
 }
 
 //StartUtt starts utterance processing.
@@ -92,24 +94,28 @@ func bool2int(b bool) int {
 
 //ProcessRaw processes a single channel, 16-bit pcm signal. if noSearch is true, ProcessRaw performs only feature extraction but don't do any recognition yet. if fullUtt is true, this block of data is a full utterance worth of data.
 func (p *PocketSphinx) ProcessRaw(raw []byte, noSearch, fullUtt bool) error {
-	raw_byte := (*C.char)(unsafe.Pointer(&raw))
+	raw_byte := (*C.char)(unsafe.Pointer(&raw[0]))
 	numByte := len(raw)
-	errorcode := C.process_raw(p.ps, raw_byte, C.size_t(numByte), C.int(bool2int(noSearch)), C.int(bool2int(fullUtt)))
-	if errorcode < 0 {
-		return fmt.Errorf("process_raw error:%d", errorcode)
+	processed := C.process_raw(p.ps, raw_byte, C.size_t(numByte), C.int(bool2int(noSearch)), C.int(bool2int(fullUtt)))
+	if processed < 0 {
+		return fmt.Errorf("process_raw error")
 	}
 	return nil
 }
 
-//GetHyp gets speech recognition result for best hypothesis. If segment is true, Result contains word segments in recognized text.
-func (p *PocketSphinx) GetHyp(segment bool) Result {
+//GetHyp gets speech recognition result for best hypothesis. If segment is true, result contains word segments in recognized text.
+func (p *PocketSphinx) GetHyp(segment bool) (Result, error) {
 	var score C.int32
-	text := C.GoString(C.ps_get_hyp(p.ps, &score))
+	charp := C.ps_get_hyp(p.ps, &score)
+	if charp == nil {
+		return Result{}, errors.New("no hypothesis")
+	}
+	text := C.GoString(charp)
 	ret := Result{Text: text, Score: int64(score)}
 	if segment {
 		ret.Segments = GetSegments(p.ps)
 	}
-	return ret
+	return ret, nil
 }
 
 func (p *PocketSphinx) getNbestHyp(nbest *C.ps_nbest_t, segment bool) Result {
@@ -153,7 +159,7 @@ func (p *PocketSphinx) ProcessUtt(raw []byte, numNbest int, segment bool) ([]Res
 	if err != nil {
 		return ret, err
 	}
-	err = p.ProcessRaw(raw, false, false)
+	err = p.ProcessRaw(raw, false, true)
 	if err != nil {
 		return ret, err
 	}
@@ -161,9 +167,11 @@ func (p *PocketSphinx) ProcessUtt(raw []byte, numNbest int, segment bool) ([]Res
 	if err != nil {
 		return ret, err
 	}
-	r := p.GetHyp(segment)
-	if r.Text != "" {
+	r, err := p.GetHyp(segment)
+	if err == nil {
 		ret = append(ret, r)
+	} else {
+		return ret, err
 	}
 
 	ret = append(ret, p.GetNbest(numNbest-1, segment)...)
