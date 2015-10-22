@@ -1,6 +1,7 @@
 package pocketsphinx
 
 import (
+	"fmt"
 	"io/ioutil"
 	"testing"
 )
@@ -11,7 +12,8 @@ func TestNewPocketSphinx(t *testing.T) {
 		Lm:          "./models/en-us/en-us.lm.bin",
 		DisableInfo: true}
 
-	NewPocketSphinx(conf)
+	ps := NewPocketSphinx(conf)
+	ps.Free()
 }
 
 func TestProcessUTT(t *testing.T) {
@@ -21,9 +23,9 @@ func TestProcessUTT(t *testing.T) {
 		DisableInfo: false}
 
 	ps := NewPocketSphinx(conf)
-
+	defer ps.Free()
 	dat, err := ioutil.ReadFile("./data/goforward.raw")
-	results, err := ps.ProcessUtt(dat, 2)
+	results, err := ps.ProcessUtt(dat, 2, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -39,13 +41,15 @@ func TestProcessRaw(t *testing.T) {
 		DisableInfo: true}
 
 	ps := NewPocketSphinx(conf)
-
+	defer ps.Free()
 	dat, _ := ioutil.ReadFile("./data/goforward.raw")
 	ps.StartUtt()
-	ps.ProcessRaw(dat, false, true)
+	ps.ProcessRaw(dat, false, false)
 	ps.EndUtt()
-	r := ps.GetHyp()
+	r := ps.GetHyp(true)
 	if r.Text == "" {
 		t.Error("could not recognize")
 	}
+
+	fmt.Println(ps.GetNbest(10, true))
 }

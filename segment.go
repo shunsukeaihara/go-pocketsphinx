@@ -7,7 +7,7 @@ package pocketsphinx
 */
 import "C"
 
-type Segments struct {
+type segments struct {
 	ps *C.ps_decoder_t
 	nb *C.ps_nbest_t
 }
@@ -22,27 +22,29 @@ type Segment struct {
 	LbackProb  int64
 }
 
-func NewSegments(ps *C.ps_decoder_t) Segments {
-	return Segments{ps: ps}
+func GetSegments(ps *C.ps_decoder_t) []Segment {
+	s := segments{ps: ps}
+	return s.GetBesyHypSegments()
 }
 
-func NewSegmentsForNbest(nb *C.ps_nbest_t) Segments {
-	return Segments{nb: nb}
+func GetSegmentsForNbest(nb *C.ps_nbest_t) []Segment {
+	s := segments{nb: nb}
+	return s.GetNbestHypSegments()
 }
 
-func (s Segments) GetBesyHypSegments() []Segment {
+func (s segments) GetBesyHypSegments() []Segment {
 	var score C.int32
 	segIt := C.ps_seg_iter(s.ps, &score)
 	return s.getSegmentsFromIter(segIt)
 }
 
-func (s Segments) GetNbestHypSegments() []Segment {
+func (s segments) GetNbestHypSegments() []Segment {
 	var score C.int32
 	segIt := C.ps_nbest_seg(s.nb, &score)
 	return s.getSegmentsFromIter(segIt)
 }
 
-func (s Segments) getSegmentsFromIter(segIt *C.ps_seg_t) []Segment {
+func (s segments) getSegmentsFromIter(segIt *C.ps_seg_t) []Segment {
 	ret := make([]Segment, 0, 10)
 	for {
 		if segIt == nil {
@@ -55,7 +57,7 @@ func (s Segments) getSegmentsFromIter(segIt *C.ps_seg_t) []Segment {
 	return ret
 }
 
-func (s Segments) getCurrentSegment(segIt *C.ps_seg_t) Segment {
+func (s segments) getCurrentSegment(segIt *C.ps_seg_t) Segment {
 	var start, end C.int
 	word := C.GoString(C.ps_seg_word(segIt))
 	C.ps_seg_frames(segIt, &start, &end)

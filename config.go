@@ -33,6 +33,7 @@ type Config struct {
 	Debug         null.Int
 	SamplingRate  null.Int
 	DisableInfo   bool
+	Language      string
 }
 
 func (c Config) SetParams(psConfig *C.cmd_ln_t) {

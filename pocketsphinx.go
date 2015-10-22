@@ -27,19 +27,21 @@ import (
 	"unsafe"
 )
 
+//Result is a speech recognition result
 type Result struct {
-	Text  string
-	Score int64
+	Text     string
+	Score    int64
+	Segments []Segment
 }
 
-var noReult = make([]Result, 0)
-
+//PocketSphinx is a speech recognition decoder object
 type PocketSphinx struct {
 	ps     *C.ps_decoder_t
 	Config Config
 	conf   *C.cmd_ln_t
 }
 
+//NewPocketSphinx creates PocketSphinx instance with Config.
 func NewPocketSphinx(config Config) *PocketSphinx {
 	var psConfig *C.cmd_ln_t
 	psConfig = C.default_config()
@@ -57,11 +59,13 @@ func NewPocketSphinx(config Config) *PocketSphinx {
 	return &PocketSphinx{ps: ps, Config: config, conf: psConfig}
 }
 
+//Free releases all resources associated with the PocketSphinx.
 func (p *PocketSphinx) Free() {
 	C.ps_free(p.ps)
 	C.cmd_ln_free_r(p.conf)
 }
 
+//StartUtt starts utterance processing.
 func (p *PocketSphinx) StartUtt() error {
 	ret := C.ps_start_utt(p.ps)
 	if ret != 0 {
@@ -70,6 +74,7 @@ func (p *PocketSphinx) StartUtt() error {
 	return nil
 }
 
+//EndUtt ends utterance processing.
 func (p *PocketSphinx) EndUtt() error {
 	ret := C.ps_end_utt(p.ps)
 	if ret != 0 {
@@ -85,6 +90,7 @@ func bool2int(b bool) int {
 	return 0
 }
 
+//ProcessRaw processes a single channel, 16-bit pcm signal. if noSearch is true, ProcessRaw performs only feature extraction but don't do any recognition yet. if fullUtt is true, this block of data is a full utterance worth of data.
 func (p *PocketSphinx) ProcessRaw(raw []byte, noSearch, fullUtt bool) error {
 	raw_byte := (*C.char)(unsafe.Pointer(&raw))
 	numByte := len(raw)
@@ -95,19 +101,28 @@ func (p *PocketSphinx) ProcessRaw(raw []byte, noSearch, fullUtt bool) error {
 	return nil
 }
 
-func (p *PocketSphinx) GetHyp() Result {
+//GetHyp gets speech recognition result for best hypothesis. If segment is true, Result contains word segments in recognized text.
+func (p *PocketSphinx) GetHyp(segment bool) Result {
 	var score C.int32
-	ret := C.GoString(C.ps_get_hyp(p.ps, &score))
-	return Result{ret, int64(score)}
+	text := C.GoString(C.ps_get_hyp(p.ps, &score))
+	ret := Result{Text: text, Score: int64(score)}
+	if segment {
+		ret.Segments = GetSegments(p.ps)
+	}
+	return ret
 }
 
-func (p *PocketSphinx) getNbestHyp(nbest *C.ps_nbest_t) Result {
+func (p *PocketSphinx) getNbestHyp(nbest *C.ps_nbest_t, segment bool) Result {
 	var score C.int32
-	ret := C.GoString(C.ps_nbest_hyp(nbest, &score))
-	return Result{ret, int64(score)}
+	text := C.GoString(C.ps_nbest_hyp(nbest, &score))
+	ret := Result{Text: text, Score: int64(score)}
+	if segment {
+		ret.Segments = GetSegmentsForNbest(nbest)
+	}
+	return ret
 }
 
-func (p *PocketSphinx) getNbest(numNbest int) []Result {
+func (p *PocketSphinx) GetNbest(numNbest int, segment bool) []Result {
 	ret := make([]Result, 0, numNbest)
 
 	nbestIt := C.ps_nbest(p.ps, 0, -1, nil, nil)
@@ -115,7 +130,13 @@ func (p *PocketSphinx) getNbest(numNbest int) []Result {
 		if nbestIt == nil {
 			break
 		}
-		ret = append(ret, p.getNbestHyp(nbestIt))
+
+		hyp := p.getNbestHyp(nbestIt, segment)
+		if hyp.Text == "" {
+			C.ps_nbest_free(nbestIt)
+			break
+		}
+		ret = append(ret, hyp)
 		if len(ret) == numNbest {
 			C.ps_nbest_free(nbestIt)
 			break
@@ -126,13 +147,13 @@ func (p *PocketSphinx) getNbest(numNbest int) []Result {
 	return ret
 }
 
-func (p *PocketSphinx) ProcessUtt(raw []byte, numNbest int) ([]Result, error) {
+func (p *PocketSphinx) ProcessUtt(raw []byte, numNbest int, segment bool) ([]Result, error) {
 	ret := make([]Result, 0, numNbest)
 	err := p.StartUtt()
 	if err != nil {
 		return ret, err
 	}
-	err = p.ProcessRaw(raw, false, true)
+	err = p.ProcessRaw(raw, false, false)
 	if err != nil {
 		return ret, err
 	}
@@ -140,11 +161,11 @@ func (p *PocketSphinx) ProcessUtt(raw []byte, numNbest int) ([]Result, error) {
 	if err != nil {
 		return ret, err
 	}
-	r := p.GetHyp()
+	r := p.GetHyp(segment)
 	if r.Text != "" {
 		ret = append(ret, r)
 	}
 
-	ret = append(ret, p.getNbest(numNbest-1)...)
+	ret = append(ret, p.GetNbest(numNbest-1, segment)...)
 	return ret, nil
 }
