@@ -41,7 +41,7 @@ type PocketSphinx struct {
 func NewPocketSphinx(config Config) *PocketSphinx {
 	psConfig := C.default_config()
 	config.SetParams(psConfig)
-
+	1
 	if config.DisableInfo {
 		path := C.CString("/dev/null")
 		defer C.free(unsafe.Pointer(path))

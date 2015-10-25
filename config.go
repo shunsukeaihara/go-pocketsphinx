@@ -7,17 +7,62 @@ package pocketsphinx
 import "C"
 
 import (
+	"io"
+	"io/ioutil"
+	"strconv"
 	"unsafe"
 
 	"gopkg.in/guregu/null.v3"
+	yaml "gopkg.in/yaml.v2"
 )
 
-func IntParam(i int64) null.Int {
-	return null.IntFrom(i)
+type NullInt null.Int
+type NullFloat null.Float
+
+func IntParam(i int64) NullInt {
+	return NullInt(null.IntFrom(i))
 }
 
-func FloatParam(f float64) null.Float {
-	return null.FloatFrom(f)
+func FloatParam(f float64) NullFloat {
+	return NullFloat(null.FloatFrom(f))
+}
+
+func (f *NullFloat) UnmarshalText(text []byte) error {
+	str := string(text)
+	if str == "" || str == "null" {
+		f.Valid = false
+		return nil
+	}
+	var err error
+	f.Float64, err = strconv.ParseFloat(str, 64)
+	f.Valid = err == nil
+	return err
+}
+
+func (f *NullInt) UnmarshalText(text []byte) error {
+	str := string(text)
+	if str == "" || str == "null" {
+		f.Valid = false
+		return nil
+	}
+	var err error
+	f.Int64, err = strconv.ParseInt(str, 10, 64)
+	f.Valid = err == nil
+	return err
+}
+
+func Load(r io.Reader) (Config, error) {
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return Config{}, err
+	}
+
+	var cfg Config
+	err = yaml.Unmarshal(data, &cfg)
+	if err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
 }
 
 type Config struct {
@@ -26,15 +71,15 @@ type Config struct {
 	Lm            string
 	Jsgf          string
 	Bestpath      string
-	Beam          null.Float
-	Wbeam         null.Float
+	Beam          NullFloat
+	Wbeam         NullFloat
 	Keyphrase     string
 	Keyphrases    []string
 	Kws           string
-	Kws_threshold null.Float
-	Kws_plp       null.Float
-	Debug         null.Int
-	SamplingRate  null.Int
+	Kws_threshold NullFloat
+	Kws_plp       NullFloat
+	Debug         NullInt
+	SamplingRate  NullInt
 	DisableInfo   bool
 	Language      string
 }
