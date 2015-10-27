@@ -74,7 +74,6 @@ type Config struct {
 	Beam          NullFloat
 	Wbeam         NullFloat
 	Keyphrase     string
-	Keyphrases    []string
 	Kws           string
 	Kws_threshold NullFloat
 	Kws_plp       NullFloat
@@ -142,4 +141,16 @@ func setIntParam(psConfig *C.cmd_ln_t, key string, val int64) {
 	keyPtr := C.CString(key)
 	defer C.free(unsafe.Pointer(keyPtr))
 	C.cmd_ln_set_int_r(psConfig, keyPtr, C.long(val))
+}
+
+func (c Config) Mode() string {
+	if c.Lm != "" {
+		return "dictation"
+	} else if c.Jsgf != "" {
+		return "grammer"
+	} else if c.Kws != "" || c.Keyphrase != "" {
+		return "spotting"
+	} else {
+		return ""
+	}
 }
