@@ -13,13 +13,13 @@ type segments struct {
 
 //Segment represents a word segment contains frame infomations and probabirity
 type Segment struct {
-	Word       string
-	StartFrame int64
-	EndFrame   int64
-	Prob       int64
-	AcProb     int64
-	LmProb     int64
-	LbackProb  int64
+	Word       string `json:"word"`
+	StartFrame int64  `json:"start_frame"`
+	EndFrame   int64  `json:"end_frame"`
+	Prob       int64  `json:"log_posterior_probability. "`
+	AcScore    int64  `json:"acoustic_score"`
+	LmScore    int64  `json:"languagemodel_score"`
+	Lmbackoff  int64  `json:"languagemodel_backoff"`
 }
 
 // GetSegments returns word segment list for best hypotesis

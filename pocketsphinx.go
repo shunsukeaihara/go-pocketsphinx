@@ -25,10 +25,10 @@ import (
 
 //Result is a speech recognition result
 type Result struct {
-	Text     string
-	Score    int64
-	Prob     int64
-	Segments []Segment
+	Text     string    `json:"text"`
+	Score    int64     `json:"score"`
+	Prob     int64     `json:"prob"`
+	Segments []Segment `json:"segments"`
 }
 
 //PocketSphinx is a speech recognition decoder object
