@@ -131,7 +131,7 @@ func (p *PocketSphinx) getNbestHyp(nbest *C.ps_nbest_t, segment bool) Result {
 func (p *PocketSphinx) GetNbest(numNbest int, segment bool) []Result {
 	ret := make([]Result, 0, numNbest)
 
-	nbestIt := C.ps_nbest(p.ps, 0, -1, nil, nil)
+	nbestIt := C.ps_nbest(p.ps)
 	for {
 		if nbestIt == nil {
 			break
