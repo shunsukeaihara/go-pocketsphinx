@@ -53,6 +53,10 @@ func NewPocketSphinx(config Config) *PocketSphinx {
 	return &PocketSphinx{ps: ps, Config: config}
 }
 
+func (p *PocketSphinx) GetInSpeech() bool {
+	return C.ps_get_in_speech(p.ps) != 0
+}
+
 //Free releases all resources associated with the PocketSphinx.
 func (p *PocketSphinx) Free() {
 	C.ps_free(p.ps)
