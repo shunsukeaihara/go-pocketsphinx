@@ -78,7 +78,7 @@ type Config struct {
 	Kws_threshold NullFloat
 	Kws_plp       NullFloat
 	Debug         NullInt
-	SamplingRate  NullInt
+	SamplingRate  NullFloat
 	DisableInfo   bool
 	Language      string
 }
@@ -116,6 +116,9 @@ func (c Config) SetParams(psConfig *C.cmd_ln_t) {
 	}
 	if c.Wbeam.Valid {
 		setFloatParam(psConfig, "-wbeam", c.Wbeam.Float64)
+	}
+	if c.SamplingRate.Valid {
+		setFloatParam(psConfig, "-samprate", c.SamplingRate.Float64)
 	}
 
 	if c.Debug.Valid {

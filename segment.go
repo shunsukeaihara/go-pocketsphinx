@@ -35,14 +35,12 @@ func GetSegmentsForNbest(nb *C.ps_nbest_t) []Segment {
 }
 
 func (s segments) getBestHypSegments() []Segment {
-	var score C.int32
-	segIt := C.ps_seg_iter(s.ps, &score)
+	segIt := C.ps_seg_iter(s.ps)
 	return s.getSegmentsFromIter(segIt)
 }
 
 func (s segments) getNbestHypSegments() []Segment {
-	var score C.int32
-	segIt := C.ps_nbest_seg(s.nb, &score)
+	segIt := C.ps_nbest_seg(s.nb)
 	return s.getSegmentsFromIter(segIt)
 }
 
